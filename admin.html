@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planeta Sushi — заказ</title>
+<style>
+:root{--bk:#141010;--bk2:#201817;--gold:#e0483e;--cr:#f6efe0;--mut:#a79d89}
+*{box-sizing:border-box}body{margin:0;background:var(--bk);color:var(--cr);font:16px/1.4 system-ui,sans-serif;padding-bottom:84px}
+header{padding:28px 18px 14px;text-align:center;border-bottom:1px solid #3a2a28}
+h1{font:700 38px Georgia,serif;margin:0;color:var(--gold);letter-spacing:1px}
+header p{margin:6px 0 0;color:var(--mut)}.hal{display:inline-block;border:1px solid var(--gold);color:var(--gold);border-radius:20px;padding:1px 10px;font-size:13px;margin-left:6px}
+nav{position:sticky;top:0;background:var(--bk);display:flex;gap:8px;overflow-x:auto;padding:10px 14px;z-index:5;border-bottom:1px solid #3a2a28}
+nav a{white-space:nowrap;color:var(--cr);text-decoration:none;border:1px solid #4a3532;border-radius:20px;padding:6px 14px}
+section{padding:6px 16px 0;max-width:640px;margin:auto}h2{font:600 24px Georgia,serif;color:var(--gold);margin:22px 0 8px}
+.it{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #2e2220}
+.it b{display:block;font-weight:600}.it small{color:var(--mut)}
+.q{display:flex;align-items:center;gap:10px}.q button{width:36px;height:36px;border-radius:50%;border:1px solid var(--gold);background:none;color:var(--gold);font-size:20px}
+.q span{min-width:18px;text-align:center}
+#bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px;background:var(--bk2);border-top:1px solid var(--gold)}
+button.main{width:100%;max-width:608px;display:block;margin:auto;padding:14px;border:0;border-radius:10px;background:var(--gold);color:#141010;font:700 16px system-ui}
+button.main:disabled{opacity:.5}
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:flex-end;z-index:9}
+#sh{background:var(--bk2);width:100%;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px;max-width:640px;margin:auto}
+input,select,textarea{width:100%;padding:12px;margin:5px 0;background:var(--bk);color:var(--cr);border:1px solid #4a3532;border-radius:8px;font:16px system-ui}
+.row{display:flex;justify-content:space-between;padding:4px 0}.err{color:#ff8a7a;min-height:20px}
+.x{float:right;background:none;border:0;color:var(--mut);font-size:26px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+</style></head><body>
+<div id="boot" style="padding:16px;margin:12px;border:1px solid #ff8a7a;border-radius:8px;color:#ff8a7a;font:16px system-ui">Страница не запустилась. Нажмите F12, откройте Console и пришлите красный текст.</div>
+<header><h1>Planeta Sushi</h1><p>Суши и роллы</p></header>
+<nav id="nav"></nav><div id="menu"></div>
+<div id="bar"><button class="main" id="open">Корзина пуста</button></div>
+<div id="ov"><div id="sh">
+<button class="x" id="close" aria-label="Закрыть">×</button>
+<div id="form"><h2 style="margin-top:0">Ваш заказ</h2><div id="lines"></div>
+<div class="row"><b>Итого</b><b id="tot"></b></div>
+<input id="n" placeholder="Имя" autocomplete="name">
+<input id="p" placeholder="Телефон" type="tel" autocomplete="tel">
+<select id="t"><option>В кафе</option><option>Самовывоз</option><option>Доставка</option></select>
+<input id="a" placeholder="Адрес доставки" style="display:none">
+<textarea id="c" rows="2" placeholder="Комментарий (необязательно)"></textarea>
+<div class="err" id="err"></div><button class="main" id="go">Отправить заказ</button></div>
+<div id="done" style="display:none;text-align:center;padding:24px 0"><h2>Заказ принят</h2><p id="num"></p><p>Администратор уже видит ваш заказ.</p><button class="main" id="again">Хорошо</button></div>
+</div></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+document.getElementById("boot").style.display="none";
+window.addEventListener("error",function(e){var b=document.getElementById("boot");b.style.display="block";b.textContent="Ошибка в программе: "+e.message;});
+// Вставьте данные из Firebase (Project settings -> Your apps). Пока ключ YOUR_..., сайт работает в тестовом режиме.
+const CFG={apiKey:"YOUR_API_KEY",authDomain:"planeta-sushi.firebaseapp.com",projectId:"planeta-sushi",appId:"YOUR_APP_ID"};
+const DEMO=CFG.apiKey.indexOf("YOUR_")===0;
+let db=null;
+if(!DEMO){try{firebase.initializeApp(CFG);db=firebase.firestore();}catch(e){console.error(e);}}
+async function sendOrder(o){
+  if(DEMO||!db){const a=JSON.parse(localStorage.getItem("planetaOrders")||"[]");o.id="D"+Date.now();a.unshift(o);localStorage.setItem("planetaOrders",JSON.stringify(a));return o.id.slice(-4);}
+  const r=await db.collection("orders").add(o);return r.id.slice(0,4).toUpperCase();
+}
+// ПРИМЕРНОЕ меню и цены (сомы) — замените на настоящие блюда кафе
+const M=[["Роллы","Филадельфия",380],["Роллы","Калифорния",340],["Роллы","Канада",400],["Роллы","Запечённый с лососем",420],["Роллы","Темпура ролл",360],
+["Суши","Лосось (2 шт.)",160],["Суши","Угорь (2 шт.)",180],["Суши","Креветка (2 шт.)",150],
+["Сеты","Сет Классика (24 шт.)",1100],["Сеты","Сет Запечённый (32 шт.)",1500],
+["Горячее","Лапша с курицей",280],["Горячее","Рис с овощами",220],["Горячее","Темпура-креветки",320],
+["Напитки","Зелёный чай",60],["Напитки","Лимонад",120],["Напитки","Мохито",160]];
+const cart={},$=id=>document.getElementById(id),som=n=>n.toLocaleString("ru-RU")+" сом";
+const cats=[...new Set(M.map(m=>m[0]))];
+$("nav").innerHTML=cats.map((c,i)=>'<a href="#c'+i+'">'+c+'</a>').join("");
+$("menu").innerHTML=cats.map((c,i)=>'<section id="c'+i+'"><h2>'+c+'</h2>'+M.map((m,j)=>m[0]!==c?"":
+'<div class="it"><div><b>'+m[1]+'</b><small>'+som(m[2])+'</small></div><div class="q"><button data-i="'+j+'" data-d="-1" aria-label="Убрать">−</button><span id="q'+j+'">0</span><button data-i="'+j+'" data-d="1" aria-label="Добавить">+</button></div></div>').join("")+'</section>').join("");
+const cnt=()=>Object.values(cart).reduce((a,b)=>a+b,0);
+const tot=()=>M.reduce((s,m,i)=>s+(cart[i]||0)*m[2],0);
+function refresh(){
+  M.forEach((m,i)=>{$("q"+i).textContent=cart[i]||0;});
+  $("open").textContent=cnt()?"Корзина: "+cnt()+" — "+som(tot()):"Корзина пуста";
+  $("lines").innerHTML=M.map((m,i)=>cart[i]?'<div class="row"><span>'+m[1]+' × '+cart[i]+'</span><span>'+som(cart[i]*m[2])+'</span></div>':"").join("");
+  $("tot").textContent=som(tot());
+}
+$("menu").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  const i=b.dataset.i,v=Math.max(0,(cart[i]||0)+Number(b.dataset.d));if(v)cart[i]=v;else delete cart[i];refresh();});
+$("open").onclick=()=>{if(!cnt())return;$("form").style.display="block";$("done").style.display="none";$("ov").style.display="flex";};
+$("close").onclick=$("again").onclick=()=>{$("ov").style.display="none";};
+$("t").onchange=()=>{$("a").style.display=$("t").value==="Доставка"?"block":"none";};
+$("go").onclick=async()=>{
+  const name=$("n").value.trim(),phone=$("p").value.replace(/\D/g,""),type=$("t").value,addr=$("a").value.trim(),err=$("err");
+  err.textContent="";
+  if(!cnt()){err.textContent="Корзина пуста";return;}
+  if(!name){err.textContent="Введите имя";return;}
+  if(phone.length<9){err.textContent="Введите телефон полностью";return;}
+  if(type==="Доставка"&&!addr){err.textContent="Введите адрес доставки";return;}
+  const items=M.map((m,i)=>cart[i]?{name:m[1],qty:cart[i],price:m[2]}:null).filter(Boolean);
+  $("go").disabled=true;
+  try{
+    const id=await sendOrder({name:name,phone:$("p").value.trim(),type:type,address:addr,comment:$("c").value.trim(),items:items,total:tot(),status:"new",createdAt:Date.now()});
+    $("num").textContent="Номер заказа: "+id;
+    Object.keys(cart).forEach(k=>delete cart[k]);refresh();
+    $("form").style.display="none";$("done").style.display="block";
+  }catch(e){console.error(e);err.textContent="Не удалось отправить. Проверьте интернет и попробуйте снова.";}
+  $("go").disabled=false;
+};
+refresh();
+</script></body></html>
+ 
